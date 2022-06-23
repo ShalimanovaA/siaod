@@ -1,0 +1,187 @@
+#include <string.h>
+#include <limits.h>
+#include <stdio.h>
+#include <conio.h>
+#include <iostream>
+#include <string>
+#include <regex>
+#include <windows.h>
+#include <fstream>
+#include<ctime>
+using namespace std;
+int max_count = 0, er=5000,srav=0; string new_string = "";
+
+static int suffix_match(const  char* needle, int nlen, int offset, int suffixlen)
+{
+    if (offset > suffixlen)
+        return needle[offset - suffixlen - 1] != needle[nlen - suffixlen - 1] &&
+        memcmp(needle + nlen - suffixlen, needle + offset - suffixlen, suffixlen) == 0;
+    else
+        return memcmp(needle + nlen - offset, needle, offset) == 0;
+}
+
+static int m(int a, int b)
+{
+    return a > b ? a : b;
+}
+
+
+int memmem_boyermoore(const  char* strsear, const int strsearc,
+    const  char* strpoi, const int strpoic)
+{
+    int* skip = new int[strpoic];
+    int occ[UCHAR_MAX + 1];
+
+    if (strpoic > strsearc || strpoic <= 0 || !strsear || !strpoi)
+        return NULL;
+
+
+    for (int a = 0; a < UCHAR_MAX + 1; ++a)
+        occ[a] = -1;
+
+
+    for (int a = 0; a < strpoic - 1; ++a)
+        occ[strpoi[a]] = a;
+
+
+    for (int a = 0; a < strpoic; ++a)
+    {
+        int offs = strpoic;
+        while (offs && !suffix_match(strpoi, strpoic, offs, a))
+            --offs;
+        skip[strpoic - a - 1] = strpoic - offs;
+    }
+
+
+    for (int hpos = 0; hpos <= strsearc - strpoic;)
+    {
+        srav++;
+        int npos = strpoic - 1;
+
+        while (strpoi[npos] == strsear[npos + hpos])
+        {
+            if (npos == 0) {
+                
+                return hpos;//strsear +
+            }
+
+
+            --npos;
+        }
+        hpos += m(skip[npos], npos - occ[strsear[npos + hpos]]);
+    }
+    return NULL;
+}
+
+int first2(string input, string word) {//на вход предложение искать слово
+    const  char* str1 = input.c_str();
+    const  char* str2 = word.c_str();
+    string s, s1 = input, s2;
+    //Hey, tom. Do you like to go with me to a cinema? O, I would like to go with you.
+    int offset, of = 0, count = 0;
+    offset = memmem_boyermoore(str1, strlen(str1), str2, strlen(str2));
+    while (offset != 0) {
+
+        offset += word.length();
+        of += offset;
+        if((s1[of-word.length()-1] == ' ')and((s1[of] == '.')or(s1[of] == ' '))) count++;
+        
+        s2 = s1.substr(of, s1.length());
+        str1 = s2.c_str();
+        
+        offset = memmem_boyermoore(str1, strlen(str1), str2, strlen(str2));
+    }
+    return count;
+}
+
+void first(string input, string word)//на вход текст
+{
+    string postfix = "."; const regex r(R"((((\s)*[\(]*\w+[,:\-;'"\)]*(\s)*)+[\.!?]))"); smatch m;//на предложения
+    string a;
+    int k;
+    if (regex_search(input, m, r)) {
+        a = m[0].str();
+        
+        k = first2(a, word);//предложение на подсчет
+        if (k > max_count)max_count = k;
+        //if (k) cout << srav << endl;
+        postfix = m.suffix().str();
+        if (postfix == " ") { new_string = ""; return; }
+        if (srav > er) { new_string = postfix; return; }
+        first(postfix, word);
+        
+    }
+    else return;
+
+}
+
+bool isTrueReg(string input)
+{
+    const regex r(R"((\b[A-Z][A-Za-z]*)\s(\b[A-Z][A-Za-z]*))");
+    return regex_search(input, r);
+}
+
+string replaceRegex(string input)
+{
+    while (isTrueReg(input)) {
+        const regex r(R"((\b[A-Z][A-Za-z]*)(\s)(\b[A-Z][A-Za-z]*))");
+        string with = string("$1\. $3");
+        input = regex_replace(input, r, with);
+    }
+    return input;
+}
+
+void inter() {
+    cout << "Лабораторная работа №10. Шалиманова Ангелина." << endl;
+    cout << "Поиск в тексте образца. Алгоритмы. Эффективность алгоритмов." << endl;
+    cout << "\t1) Дан текст из нескольких предложений и слово. " << endl;
+    cout << "\tОпределить в каком предложении " << endl;
+    cout << "\tиз представленных заданное слово входит большее число раз." << endl;
+    cout << "\t2)Если после слова, начинающегося с большой " << endl;
+    cout << "\tбуквы, идет слово, также начинающееся с " << endl;
+    cout << "\tбольшой буквы, отделить первое точкой так, " << endl;
+    cout << "\tбудто это отдельное предложение." << endl;
+    cout << "\tПоиск: Эффективный Бойера-Мура"<<endl;
+}
+int main()
+{
+    SetConsoleOutputCP(1251);
+    SetConsoleCP(1251);
+    inter();
+    unsigned int begin, end,menu;
+    cout << "Введите номер задания:"; cin >> menu; cin.clear();
+    string input = "", word = "";
+    ifstream f("text.txt");
+    while (!f.eof()) {
+        f >> word;
+        input += word + " ";
+    }
+    f.close();
+    switch (menu)
+    {
+    case 1:
+        word = "So";
+        
+        begin = clock();
+        first(input, word);
+        if (srav > er) { er += 5000; first(new_string, word); }
+        while (new_string != "") {
+            if (srav > er) { er += 5000; first(new_string, word); }
+        }
+        end = clock();
+        cout << "Число сравнений:" << srav << "; Длина текста: " << input.length() << endl;
+        cout << "Максимальное число вхождений: " << max_count << "; Время выполнения: " << (end - begin) << " миллисекунд" << endl;
+        srav = 0;
+        break;
+
+    case 2:
+        while (true) {
+            cout << "Введите текст для второго задания: ";
+            getline(cin, input);
+            if(input.length()==0)getline(cin, input);
+            cout <<"Новый текст: "<< replaceRegex(input) << endl;
+        }
+        break;
+    }
+    return 0;
+}
