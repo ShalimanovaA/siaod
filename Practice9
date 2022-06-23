@@ -1,0 +1,164 @@
+#include <iostream>
+#include <string>
+#include <fstream>
+#include <time.h>
+#include <ctime>
+using namespace std;//10000,15000,20000,25000
+const int size_of_array = 30000; int mas[size_of_array];
+struct company {
+	int license_number=0;
+	string name="", founder="";
+};
+struct key_offset {
+	int license_number, offset;
+};
+key_offset arr_key_offset[size_of_array];//массив структур ключ, смещение
+
+//---------заполнение--------
+//заполнение ключей датчиком случайных чисел и проверка на уникальность(работает)
+void ZapolnRand(int* mas, int* n) {
+	bool f = false;
+	int x = rand() % (size_of_array * 2);
+	for (int i = 0; i < *n; i++) {
+		if (mas[i] == x) f = true;
+	}
+	if (f)ZapolnRand(mas, n);
+	else mas[*n] = x;
+}
+//заполнение файла записями(работает)
+int Input(int* mas) {
+	srand(time(NULL));
+	company A;
+	ofstream fout("test_file.bin", ios_base::binary);
+	for (int i = 0; i < size_of_array; i++) {
+		ZapolnRand(mas, &i);
+
+		fout.write((char*)&mas[i], sizeof(int));
+		int n = (rand() % 3) + 2;
+
+		for (int j = 0; j < n; j++) {
+			A.name += char(rand() % 26 + 0x61);
+			A.founder += char(rand() % 26 + 0x61);
+		}
+
+		fout.write((char*)&(A.name), sizeof(string));
+		fout.write((char*)&(A.founder), sizeof(string));
+		//cout << mas[i] << " " << A.name << " " << A.founder << endl;
+		arr_key_offset[i].license_number = mas[i];
+		arr_key_offset[i].offset = i * (sizeof(int) + sizeof(string) + sizeof(string));
+		A.name = ""; A.founder = "";
+	}
+	fout.close();
+	return mas[size_of_array - 1];
+}
+
+
+//-----------поиск--------
+//поиск по файлу линейный(последнего)(работает)
+company* linear_search(int key) {
+	company* A = new company;
+	int offset = 0;
+	bool f = true;
+	ifstream infile("test_file.bin", ifstream::binary | ios::in);
+	while ((!infile.eof()) and f)
+	{
+		infile.read((char*)A, sizeof company);
+		if (A->license_number == key) f = false;
+	}
+	infile.close();
+	if (!f) return A;
+	else {
+		cout << "error";
+	}
+}
+//сортировка 2 массивов по первому
+void Sort() {
+	int temp;
+	for (int i = 0; i < size_of_array - 1; i++) {
+		for (int j = 0; j < size_of_array - i - 1; j++) {
+			if (arr_key_offset[j].license_number > arr_key_offset[j + 1].license_number) {
+				// меняем элементы местами
+				temp = arr_key_offset[j].license_number;
+				arr_key_offset[j].license_number = arr_key_offset[j + 1].license_number;
+				arr_key_offset[j + 1].license_number = temp;
+				temp = arr_key_offset[j].offset;
+				arr_key_offset[j].offset = arr_key_offset[j + 1].offset;
+				arr_key_offset[j + 1].offset = temp;
+			}
+		}
+	}
+}
+//бинарный поиск
+int BinarySearch(int left, int right, int key)
+{
+	int midd = 0;
+	while (true)
+	{
+		midd = (left + right) / 2;
+
+		if (key < arr_key_offset[midd].license_number)       // если искомое меньше значения в ячейке
+			right = midd - 1;      // смещаем правую границу поиска
+		else if (key > arr_key_offset[midd].license_number)  // если искомое больше значения в ячейке
+			left = midd + 1;    // смещаем левую границу поиска
+		else                       // иначе (значения равны)
+			return midd;           // функция возвращает индекс ячейки
+
+		if (left > right)          // если границы сомкнулись 
+			return -1;
+	}
+}
+//функция принимает на вход ключ, ищет элемент, соответствующий ключу,и возвращает смещение.бинарный поиск
+int* OffsetSearch(int *key) {
+
+	company* A = new company;//заполнение из файла
+	int i = 0, offset = 0;
+	Sort();
+	i = BinarySearch(0, size_of_array - 1, *key);
+	int b = arr_key_offset[i].offset;
+	int* a = &b;
+	return a;
+}
+
+//-------считывание------------
+//функцию принимает ссылку на запись,Возвращает прочитанную запись как результат
+company* direct_access(int offset) {
+	FILE* f;
+	company* A = new company;
+	if ((f = fopen("test_file.bin", "rb")) == NULL) { cout << "error"; }
+	else {
+		fseek(f, offset, SEEK_CUR);//устанавливаем курсор чтения
+		fread(A, sizeof(company), 1, f);
+		fclose(f);
+		return A;
+	}
+}
+
+void interface() {
+	cout << "Лабораторная работы №9. Шалиманова Ангелина." << endl;
+	cout << "Поиск записей в файле." << endl;
+	cout << "Структура регистрация малого предприятия: номер лицензии, название, учредитель ." << endl;
+
+}
+int main() {
+	setlocale(0, "russian");
+	srand(time(NULL));
+	interface();
+	company B, C;
+	int last_key=0, offset = 0;
+	unsigned int begin, end;
+	last_key = Input(mas);//заполнение файла записями(рандомно уникальный ключ, название и основатель)
+	cout << "Ключ последней записи: " << last_key << endl;
+	begin = clock();
+	C = *(linear_search(last_key));//поиск по файлу линейный(последнего)
+	end = clock();
+	cout << "Последняя запись в файле: ключ - " << C.license_number << ",название - " << C.name << ",основатель - " << C.founder << ";" << endl;
+	cout << "Время выполнения линейного поиска последней записи для " << size_of_array << " элементов: " << (end - begin) << " миллисекунд;" << endl;
+
+	offset = *(OffsetSearch(&last_key));
+	cout << "Ключ записи,которую ищем с помощью ссылки: " << last_key << endl;
+	begin = clock();
+	B = *(direct_access(offset));
+	end = clock();
+	cout << "Доступ к записи по смещению в файле: ключ - " << B.license_number << ",название - " << B.name << ",основатель - " << B.founder << ";" << endl;
+	cout << "Время выполнения поиска последней записи по ссылке для " << size_of_array << " элементов: " << (end - begin) << " миллисекунд;" << endl;
+}
